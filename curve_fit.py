@@ -4,6 +4,7 @@ from scipy.optimize import curve_fit
 import os
 import matplotlib.pyplot as plt
 from scipy.signal import find_peaks
+import re
 
 data_folder = 'data'
 csv_files = os.listdir(data_folder)
@@ -24,7 +25,7 @@ def find_coefficient(file_path):
 
     if len(peaks) == 0:
         print(f"No peaks found in {file_path}")
-        return None
+        return None, None, None
 
     def exponential_decay(t, A, k):
         return A * np.exp(-k * t)
@@ -32,35 +33,20 @@ def find_coefficient(file_path):
     initial_guess = [peak_values.iloc[0], 0.01]  
     popt, pcov = curve_fit(exponential_decay, x[peaks], peak_values, p0=initial_guess)
     A, k = popt
-    plt.style.use('ggplot')
-    plt.figure(figsize=(8, 6))
-    plt.scatter(x, y, color='blue', label='Data')
-    plt.plot(x, exponential_decay(x, *popt), color='red', label='Fit')
-    plt.scatter(x[peaks], peak_values, color='green', label='Peaks')
-    plt.xlabel('Time')
-    plt.ylabel('Amplitude')
-    plt.title('Damped Oscillation')
-    plt.legend()
-    plt.grid(True)
-    plt.show()
-    return k
+
+    return x, y, peaks, peak_values, A, k
 
 for csv_file in csv_files:
     csv_file_path = os.path.join(data_folder, csv_file)
-    coefficient = find_coefficient(csv_file_path)
-    if coefficient is not None:
-        print(f"Damping coefficient for {csv_file_path}: {coefficient}")
+    x, y, peaks, peak_values, A, k = find_coefficient(csv_file_path)
     
-    df = pd.read_csv(csv_file_path)
-    x = df.iloc[:, 0]
-    y = df.iloc[:, 1]
-    
-    peaks, _ = find_peaks_custom(y)
-    
-    if len(peaks) < 2:
-        print(f"Not enough peaks found in {csv_file_path} for damped oscillator fit.")
+    if x is None:
         continue
     
+    mass = float(re.search(r'([\d.]+)g', csv_file).group(1))
+    coefficient = mass * k
+    print(f"Damping coefficient for {csv_file_path}: {coefficient}")
+
     A_guess = 0.2
     b_guess = 0.01
     w_guess = 2 * np.pi / (x[peaks[1]] - x[peaks[0]]) 
@@ -71,12 +57,15 @@ for csv_file in csv_files:
     popt, pcov = curve_fit(damped_oscillator, x, y, p0=initial_guess)
     
     plt.style.use('ggplot')
-    plt.figure(figsize=(8, 6))
-    plt.scatter(x, y, color='blue', label='Data')
-    plt.plot(x, damped_oscillator(x, *popt), color='red', label='Fit')
+    plt.figure(figsize=(10, 6))
+    plt.scatter(x, y, color='blue', label='Data', s=10)
+    plt.plot(x, damped_oscillator(x, *popt), color='red', label='Damped Oscillator Fit')
+    plt.scatter(x[peaks], peak_values, color='green', label='Peaks', s=50, edgecolor='black')
+    plt.plot(x, A * np.exp(-k * x), color='orange', label='Exponential Decay Fit')
     plt.xlabel('Time')
     plt.ylabel('Amplitude')
-    plt.title('Damped Oscillation')
+    plt.title(f'Damped Oscillation (Damping Coefficient: {coefficient:.4f})')
     plt.legend()
-    plt.grid(True)
+    plt.grid(True, linestyle='--', alpha=0.7)
+    plt.tight_layout()
     plt.show()
