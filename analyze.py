@@ -5,9 +5,12 @@ import os
 import matplotlib.pyplot as plt
 from scipy.signal import find_peaks
 import re
+import math
 
 data_folder = 'data'
 csv_files = os.listdir(data_folder)
+coefficients = []
+areas = []
 
 def damped_oscillator(t, A, b, w, phi, D):
     return A * np.exp(-b * t) * np.cos(w * t + phi) + D
@@ -44,8 +47,10 @@ for csv_file in csv_files:
         continue
     
     mass = float(re.search(r'([\d.]+)g', csv_file).group(1))
+    areas.append(float(re.search(r'([\d.]+)cm', csv_file).group(1))**2*math.pi)
     coefficient = mass * k
     print(f"Damping coefficient for {csv_file_path}: {coefficient}")
+    coefficients.append(coefficient)
 
     A_guess = 0.2
     b_guess = 0.01
@@ -69,3 +74,12 @@ for csv_file in csv_files:
     plt.grid(True, linestyle='--', alpha=0.7)
     plt.tight_layout()
     plt.show()
+
+plt.scatter(areas, coefficients, color='blue', label='Coefficients vs Areas')
+plt.xlabel('Areas (cm^2)')
+plt.ylabel('Coefficients')
+plt.title('Coefficients vs Areas')
+plt.legend()
+plt.grid(True, linestyle='--', alpha=0.7)
+plt.tight_layout()
+plt.show()
